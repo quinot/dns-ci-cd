@@ -20,6 +20,12 @@ import jinja2
 from typing import Mapping, Optional
 from rich import print, inspect
 
+ZONES_SUFFIX=".zone"
+ZONES_PATTERN = f"*{ZONES_SUFFIX}"
+ZONES_DEPLOY_STATE = "zones_deploy.json"
+SERIAL_MAGIC = ""
+SERIAL_RE = re.compile(r"(^.*\sSOA\s[^)]+\s)1\s*;\s*SERIALAUTOUPDATE", flags=re.DOTALL | re.IGNORECASE | re.MULTILINE)
+
 @dataclass
 class State:
     commit: str
@@ -45,7 +51,7 @@ class CtxObj:
         print(f"listing {self.zones_subdir}/{ZONES_PATTERN}")
         return Path(self.zones_subdir).glob(ZONES_PATTERN)
 
-    def changed_zones(self):
+    def list_changed_zones(self):
         if self.state is not None:
             old_ref = self.state.commit
         else:
@@ -65,12 +71,6 @@ def parse_git_output(stdout):
                 for p in stdout.decode("utf-8").rstrip("\0").split("\0"))
     else:
         return list()
-
-ZONES_SUFFIX=".zone"
-ZONES_PATTERN = f"*{ZONES_SUFFIX}"
-ZONES_DEPLOY_STATE = "zones_deploy.json"
-SERIAL_MAGIC = ""
-SERIAL_RE = re.compile(r"(^.*\sSOA\s[^)]+\s)1\s*;\s*SERIALAUTOUPDATE", flags=re.DOTALL | re.IGNORECASE | re.MULTILINE)
 
 def zone(zone_file):
     """Strip ZONE_SUFFIX from basename of zone_file"""
@@ -95,18 +95,19 @@ def main(ctx, **options):
     except OSError:
         pass
 
+    ctx.obj.all_zones = {zone(zone_file): zone_file for zone_file in ctx.obj.list_zones()}
+    ctx.obj.changed_zone_files = set(ctx.obj.list_changed_zones())
+
 @main.command()
 @click.option("--conf-template", default="knot-zones.conf.j2", help="name server configuration template")
 @pass_ctxobj
 def build(ctxobj: CtxObj, conf_template):
     print(f":brick: Building in {ctxobj.zones_subdir}")
 
-    all_zones = {zone(zone_file): zone_file for zone_file in ctxobj.list_zones()}
-    changed_zone_files = set(ctxobj.changed_zones())
 
-    for z, zf in all_zones.items():
+    for z, zf in ctxobj.all_zones.items():
         if (
-            zf in changed_zone_files
+            zf in ctxobj.changed_zone_files
             or z not in ctxobj.state.serials
             or ctxobj.all_zones
         ):
@@ -114,24 +115,27 @@ def build(ctxobj: CtxObj, conf_template):
 
         generate(ctxobj, z, zf)
 
-    generate_config(ctxobj, conf_template, all_zones)
+    generate_config(ctxobj, conf_template)
 
-def generate_config(ctxobj, conf_template, zones):
-    build_path = Path(ctxobj.build_subdir)
-    build_path.mkdir(parents=True, exist_ok=True)
-    out_path = build_path.joinpath(Path(conf_template).with_suffix(""))
+def ensure_dir(path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+def generate_config(ctxobj, conf_template):
+    out_path = ensure_dir(Path(ctxobj.build_subdir, conf_template).with_suffix(""))
 
     print(f":hammer_and_wrench: Generating configuration {out_path}")
     env = jinja2.Environment(loader=jinja2.PackageLoader(__package__))
     template = env.get_template(conf_template)
 
     with out_path.open("w") as out_file:
-        out_file.write(template.render(zones=zones))
+        out_file.write(template.render(zones=ctxobj.all_zones))
 
 
 def generate(ctxobj, zone, zone_file):
-    out_file = os.path.join(ctxobj.build_subdir, os.path.basename(zone_file))
-    print(f":christmas_tree: Generating zone {out_file}")
+    out_path = ensure_dir(Path(ctxobj.build_subdir, zone_file))
+    print(f":christmas_tree: Generating zone {out_path}")
+
     with open(zone_file, "r") as f:
         updated, count = SERIAL_RE.subn(
             lambda m: f"{m.group(1)}{ctxobj.state.serials[zone]}",
@@ -141,13 +145,23 @@ def generate(ctxobj, zone, zone_file):
         if count == 0:
             print(f"[yellow]:warning: No serial placeholder found in {zone_file}")
 
-    with open(out_file, "w") as f:
+    with out_path.open("w") as f:
         f.write(updated)
 
 @main.command()
+@click.option("--check-command", default="kzonecheck -o {zone} {zone_file}", help="command to check a zone")
 @pass_ctxobj
-def check(ctxobj: CtxObj):
+def check(ctxobj: CtxObj, check_command):
     print(":magnifying_glass_tilted_left: Checking")
+
+    for zone, zone_file in ctxobj.all_zones.items():
+        built_zone_file = Path(ctxobj.build_subdir, zone_file)
+        print(f"Checking {built_zone_file}")
+        r = subprocess.run(check_command.format(zone=zone, zone_file=built_zone_file), shell=True)
+        if r.returncode != 0:
+            print(f"[red]:x: {zone} failed")
+        else:
+            print(f"[green]:white_check_mark: {zone}")
 
 @main.command()
 @pass_ctxobj
