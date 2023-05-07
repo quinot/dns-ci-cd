@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "dns-ci-cd"
+version = "0.1.0"
+description = "DNS CI/CD scripts"
+authors = ["Thomas Quinot <thomas@quinot.org>"]
+readme = "README.md"
+packages = [{include = "dns_cicd"}]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+click = "^8.1.3"
+jinja2 = "^3.1.2"
+rich = "^13.3.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
