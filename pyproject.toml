@@ -6,6 +6,9 @@ authors = ["Thomas Quinot <thomas@quinot.org>"]
 readme = "README.md"
 packages = [{include = "dns_cicd"}]
 
+[tool.poetry.scripts]
+dns_cicd = "dns_cicd:main"
+
 [tool.poetry.dependencies]
 python = "^3.7"
 click = "^8.1.3"
