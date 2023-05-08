@@ -110,8 +110,9 @@ def main(ctx, **options):
     try:
         ctx.obj.state = load_state(ZONES_DEPLOY_STATE)
     except FileNotFoundError:
-        ctx.obj.state = State(commit="0000000000000000000000000000000000000000", serials={})
-
+        ctx.obj.state = State(
+            commit="0000000000000000000000000000000000000000", serials={}
+        )
 
     ctx.obj.all_zones = {
         zone(zone_file): zone_file for zone_file in ctx.obj.list_zones()
@@ -135,16 +136,14 @@ def build(ctxobj: CtxObj, conf_template: str, catalog_zone: str):
         if substituted:
             new_state.serials[zone] = ctxobj.state.serials[zone]
 
-
     def update_serial_if_modified(zone: str, modified: bool):
-        if (
-            modified
-            or zone not in ctxobj.state.serials
-            or ctxobj.all_zones
-        ):
+        if modified or zone not in ctxobj.state.serials or ctxobj.all_zones:
             ctxobj.state.update_serial(zone)
 
-    new_state = State(commit=subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8"), serials={})
+    new_state = State(
+        commit=subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8"),
+        serials={},
+    )
 
     # Process zones
 
@@ -159,7 +158,9 @@ def build(ctxobj: CtxObj, conf_template: str, catalog_zone: str):
     # Generate catalog zone
 
     if catalog_zone is not None:
-        catalog_zone_file_path = Path(ctxobj.zones_subdir, f"{catalog_zone}{ZONES_SUFFIX}")
+        catalog_zone_file_path = Path(
+            ctxobj.zones_subdir, f"{catalog_zone}{ZONES_SUFFIX}"
+        )
         generate_config(ctxobj, "catalog.zone.j2", catalog_zone_file_path)
 
         old_zones = set(ctxobj.state.serials.keys()) - {catalog_zone}
@@ -177,13 +178,17 @@ def ensure_dir(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
 
-def generate_config(ctxobj, conf_template, out_path: Optional[Path]=None):
+
+def generate_config(ctxobj, conf_template, out_path: Optional[Path] = None):
     if out_path is None:
         out_path = Path(ctxobj.build_subdir, conf_template).with_suffix("")
     ensure_dir(out_path)
 
     print(f":hammer_and_wrench: Generating configuration {out_path}")
-    env = jinja2.Environment(extensions=['jinja2_ansible_filters.AnsibleCoreFiltersExtension'], loader=jinja2.PackageLoader(__package__))
+    env = jinja2.Environment(
+        extensions=["jinja2_ansible_filters.AnsibleCoreFiltersExtension"],
+        loader=jinja2.PackageLoader(__package__),
+    )
     template = env.get_template(conf_template)
 
     with out_path.open("w") as out_file:
