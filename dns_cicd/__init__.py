@@ -197,10 +197,10 @@ def generate_config(ctxobj, new_state: State, conf_template, out_path: Optional[
     with out_path.open("w") as out_file:
         out_file.write(template.render(zones=ctxobj.all_zones))
 
-        # Record hash of config file to detect what needs to be deployed
+    # Record hash of config file to detect what needs to be deployed
 
-        out_file.seek(0)
-        new_state.conf_hashes[out_path.relative_to(ctxobj.build_subdir)] = hashlib.file_digest(out_file, 'sha256').hexdigest()
+    with out_path.open("rb") as hash_file:
+        new_state.conf_hashes[str(out_path.relative_to(ctxobj.build_subdir))] = hashlib.file_digest(hash_file, 'sha256').hexdigest()
 
 def generate_state(ctxobj, state):
     out_path = ensure_dir(Path(ctxobj.build_subdir, ZONES_DEPLOY_STATE))
