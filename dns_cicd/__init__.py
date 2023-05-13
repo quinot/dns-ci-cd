@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 import click
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 import hashlib
 import jinja2
 from typing import Mapping, Optional
@@ -26,9 +26,9 @@ SERIAL_RE = re.compile(
 
 @dataclass
 class State:
-    commit: str
-    serials: Mapping[str, int]
-    conf_hashes: Mapping[str, str]
+    commit: str = "0000000000000000000000000000000000000000"
+    serials: Mapping[str, int] = field(default_factory=dict)
+    conf_hashes: Mapping[str, str] = field(default_factory=dict)
 
     def update_serial(self, zone):
         self.serials[zone] = get_increased_serial(self.serials.get(zone, 2000010100))
@@ -114,9 +114,8 @@ def main(ctx, **options):
     try:
         ctx.obj.state = load_state(ZONES_DEPLOY_STATE)
     except FileNotFoundError:
-        ctx.obj.state = State(
-            commit="0000000000000000000000000000000000000000", serials={}
-        )
+        print(":hatching_chick: Initializing new state")
+        ctx.obj.state = State()
 
     ctx.obj.all_zones = {
         zone(zone_file): zone_file for zone_file in ctx.obj.list_zones()
