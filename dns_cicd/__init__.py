@@ -9,6 +9,7 @@ from pathlib import Path
 
 import click
 from dataclasses import dataclass, asdict
+import hashlib
 import jinja2
 from typing import Mapping, Optional
 from rich import print
@@ -27,6 +28,7 @@ SERIAL_RE = re.compile(
 class State:
     commit: str
     serials: Mapping[str, int]
+    conf_hashes: Mapping[str, str]
 
     def update_serial(self, zone):
         self.serials[zone] = get_increased_serial(self.serials.get(zone, 2000010100))
@@ -40,6 +42,7 @@ class CtxObj:
     zones_subdir: str
     debug: bool
     all_zones: bool
+    server: str
 
     # Other global state
 
@@ -91,6 +94,7 @@ pass_ctxobj = click.make_pass_decorator(CtxObj)
 
 
 @click.group()
+@click.option("--server", default="", help="primary name server")
 @click.option(
     "--build-subdir",
     default="build",
@@ -153,7 +157,7 @@ def build(ctxobj: CtxObj, conf_template: str, catalog_zone: str):
 
     # Generate name server configuration
 
-    generate_config(ctxobj, conf_template)
+    generate_config(ctxobj, new_state, conf_template)
 
     # Generate catalog zone
 
@@ -161,7 +165,7 @@ def build(ctxobj: CtxObj, conf_template: str, catalog_zone: str):
         catalog_zone_file_path = Path(
             ctxobj.zones_subdir, f"{catalog_zone}{ZONES_SUFFIX}"
         )
-        generate_config(ctxobj, "catalog.zone.j2", catalog_zone_file_path)
+        generate_config(ctxobj, new_state, "catalog.zone.j2", catalog_zone_file_path)
 
         old_zones = set(ctxobj.state.serials.keys()) - {catalog_zone}
         new_zones = set(new_state.serials.keys())
@@ -179,7 +183,7 @@ def ensure_dir(path: Path):
     return path
 
 
-def generate_config(ctxobj, conf_template, out_path: Optional[Path] = None):
+def generate_config(ctxobj, new_state: State, conf_template, out_path: Optional[Path] = None):
     if out_path is None:
         out_path = Path(ctxobj.build_subdir, conf_template).with_suffix("")
     ensure_dir(out_path)
@@ -194,6 +198,10 @@ def generate_config(ctxobj, conf_template, out_path: Optional[Path] = None):
     with out_path.open("w") as out_file:
         out_file.write(template.render(zones=ctxobj.all_zones))
 
+        # Record hash of config file to detect what needs to be deployed
+
+        out_file.seek(0)
+        new_state.conf_hashes[out_path.relative_to(ctxobj.build_subdir)] = hashlib.file_digest(out_file, 'sha256').hexdigest()
 
 def generate_state(ctxobj, state):
     out_path = ensure_dir(Path(ctxobj.build_subdir, ZONES_DEPLOY_STATE))
@@ -223,17 +231,16 @@ def generate(ctxobj, zone, zone_file):
 
 
 @main.command()
-@click.option("--server", default="", help="master server to check for serial increase")
 @click.option(
     "--check-command",
     default="kzonecheck -o {zone} {zone_file}",
     help="command to check a zone",
 )
 @pass_ctxobj
-def check(ctxobj: CtxObj, check_command: str, server: str):
+def check(ctxobj: CtxObj, check_command: str):
     print(":magnifying_glass_tilted_left: Checking")
 
-    syntax_only = server == ""
+    syntax_only = ctxobj.server == ""
     all_success = True
     new_state = load_state(Path(ctxobj.build_subdir, ZONES_DEPLOY_STATE))
 
@@ -275,7 +282,7 @@ def check(ctxobj: CtxObj, check_command: str, server: str):
 
         if success and not syntax_only and zone_file in ctxobj.changed_zone_files:
             try:
-                current_serial = serial_from_query(zone, server)
+                current_serial = serial_from_query(zone, ctxobj.server)
             except:
                 print(
                     f"[yellow]:warning: Failed to query serial for {zone}, skipping check"
@@ -322,8 +329,47 @@ def serial_from_zone_file(zone, zone_file):
     return soa[0].serial
 
 
-# From dzonegit
+@main.command()
+@click.option(
+    "--deploy-command",
+    default=None,
+    help="command to check a zone",
+)
+@pass_ctxobj
+def deploy(ctxobj: CtxObj, deploy_command):
+    print(":ship: Deploying zones")
 
+    new_state_path = Path(ctxobj.build_subdir, ZONES_DEPLOY_STATE)
+    new_state = load_state(new_state_path)
+
+    reload_config = ctxobj.state.conf_hashes != new_state.conf_hashes
+    if reload_config:
+        zones_to_reload = []
+    else:
+        zones_to_reload = [
+            zone
+            for zone, zone_serial in new_state.serials.items()
+            if zone_serial != ctxobj.state.serials[zone]
+        ]
+
+    # Run deployment shell script
+
+    if deploy_command is None:
+        deploy_command_path = importlib.resources.path(__package__, "scripts/deploy.sh")
+    else:
+        deploy_command_path = Path(deploy_command)
+    subprocess.check_call([
+         str(deploy_command_path),
+         "-z", ctxobj.zones_subdir,
+         "-b", ctxobj.build_subdir,
+         "-s", ctxobj.server,
+    ] + zones_to_reload)
+
+    # Promote new state to currently deployed state
+
+    new_state_path.rename(ZONES_DEPLOY_STATE)
+
+# From dzonegit
 
 def is_serial_increased(old, new):
     """Return true if serial number was increased using RFC 1982 logic."""

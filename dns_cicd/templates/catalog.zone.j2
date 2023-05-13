@@ -7,6 +7,6 @@
 )
 
 version IN TXT "2"
-{%- for zone in zones %}
+{%- for zone in zones | sort %}
 {{ zone | hash("sha256") }}.zones IN PTR {{ zone }}.
 {%- endfor %}
