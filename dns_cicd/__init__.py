@@ -2,7 +2,7 @@
 
 import datetime
 import hashlib
-import importlib
+import importlib.resources
 import json
 import re
 import subprocess
@@ -360,7 +360,9 @@ def deploy(ctxobj: CtxObj, deploy_command):
     # Run deployment shell script
 
     if deploy_command is None:
-        deploy_command_path = importlib.resources.path(__package__, "scripts/deploy.sh")
+        deploy_command_path = importlib.resources.files(__package__).joinpath(
+            "scripts/deploy.sh"
+        )
     else:
         deploy_command_path = Path(deploy_command)
     subprocess.check_call(
