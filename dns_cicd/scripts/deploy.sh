@@ -1,13 +1,20 @@
 #! /bin/bash
 
+SSH_USER=knotssh
+RSYNCPARAMS="--itemize-changes --verbose --human-readable --times --checksum --recursive --delete --delete-excluded"
+
 usage() {
     echo "Usage: $0 -b BUILD_DIR -s SERVER [zone [zone]...]" 1>&2
     exit 1
 
 }
 
-SSH_USER=knotssh
-RSYNCPARAMS="--itemize-changes --verbose --human-readable --times --checksum --recursive --delete --delete-excluded"
+check() {
+    if [ -z "$1" ]; then
+        echo "$2 is not set" 1>&2
+        exit 1
+    fi
+}
 
 while getopts z:b:s: opt
 do
@@ -55,4 +62,4 @@ fi
 
 # Show status
 
-"$SSH_USER@$SERVER" "knotc zone-status"
+ssh "$SSH_USER@$SERVER" "knotc zone-status"
