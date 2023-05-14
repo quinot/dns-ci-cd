@@ -34,7 +34,8 @@ check "$BUILD_DIR" "build directory (-b)"
 check "$SERVER" "server (-s)"
 check "$SSH_PRIVATE_KEY" "SSH private key (\$SSH_PRIVATE_KEY)"
 
-set -x
+set -ex
+
 eval "$(ssh-agent -s)" > /dev/null 2>&1
 trap "ssh-agent -k" EXIT
 ssh-add <(echo "$SSH_PRIVATE_KEY") > /dev/null 2>&1
