@@ -1,12 +1,12 @@
 FROM cznic/knot AS base
-RUN apt update
+RUN apt update && apt install -y git
 
 ENV PYENV_ROOT /root/.pyenv
 ENV PATH $PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
 
 FROM base AS python
 ARG PYTHON_VERSION=3.11
-RUN apt install -y curl git \
+RUN apt install -y curl \
                    build-essential libssl-dev zlib1g-dev \
                    libbz2-dev libreadline-dev libsqlite3-dev curl \
                    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
