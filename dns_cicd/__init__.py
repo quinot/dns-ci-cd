@@ -183,7 +183,9 @@ def ensure_dir(path: Path):
     return path
 
 
-def generate_config(ctxobj, new_state: State, conf_template, out_path: Optional[Path] = None):
+def generate_config(
+    ctxobj, new_state: State, conf_template, out_path: Optional[Path] = None
+):
     if out_path is None:
         out_path = Path(ctxobj.build_subdir, conf_template).with_suffix("")
     ensure_dir(out_path)
@@ -201,7 +203,10 @@ def generate_config(ctxobj, new_state: State, conf_template, out_path: Optional[
     # Record hash of config file to detect what needs to be deployed
 
     with out_path.open("rb") as hash_file:
-        new_state.conf_hashes[str(out_path.relative_to(ctxobj.build_subdir))] = hashlib.file_digest(hash_file, 'sha256').hexdigest()
+        new_state.conf_hashes[
+            str(out_path.relative_to(ctxobj.build_subdir))
+        ] = hashlib.file_digest(hash_file, "sha256").hexdigest()
+
 
 def generate_state(ctxobj, state):
     out_path = ensure_dir(Path(ctxobj.build_subdir, ZONES_DEPLOY_STATE))
@@ -358,18 +363,26 @@ def deploy(ctxobj: CtxObj, deploy_command):
         deploy_command_path = importlib.resources.path(__package__, "scripts/deploy.sh")
     else:
         deploy_command_path = Path(deploy_command)
-    subprocess.check_call([
-         str(deploy_command_path),
-         "-z", ctxobj.zones_subdir,
-         "-b", ctxobj.build_subdir,
-         "-s", ctxobj.server,
-    ] + zones_to_reload)
+    subprocess.check_call(
+        [
+            str(deploy_command_path),
+            "-z",
+            ctxobj.zones_subdir,
+            "-b",
+            ctxobj.build_subdir,
+            "-s",
+            ctxobj.server,
+        ]
+        + zones_to_reload
+    )
 
     # Promote new state to currently deployed state
 
     new_state_path.rename(ZONES_DEPLOY_STATE)
 
+
 # From dzonegit
+
 
 def is_serial_increased(old, new):
     """Return true if serial number was increased using RFC 1982 logic."""
