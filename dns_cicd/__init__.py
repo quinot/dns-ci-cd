@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 
-import subprocess
-import re
-import time
 import datetime
-import json
-from pathlib import Path
-
-import click
-from dataclasses import dataclass, asdict, field
 import hashlib
 import importlib
-import jinja2
+import json
+import re
+import subprocess
+import time
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Mapping, Optional
+
+import click
+import jinja2
 from rich import print
 
 ZONES_SUFFIX = ".zone"
