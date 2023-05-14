@@ -6,6 +6,7 @@ import importlib.resources
 import json
 import re
 import subprocess
+import sys
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -266,9 +267,10 @@ def check(ctxobj: CtxObj, check_command: str):
         # Serial checks
 
         try:
-            new_serial = serial_from_zone_file(zone, zone_file)
+            new_serial = serial_from_zone_file(zone, built_zone_file)
+            print(f"[blue]:info: New serial for {zone} is {new_serial}")
         except:
-            print(f"[red]:x: Failed to get serial from {zone_file}")
+            print(f"[red]:x: Failed to get serial from {built_zone_file}")
             success = False
 
         # If zone has an auto-updated serial, check that it's consistent with persisted state
@@ -294,11 +296,6 @@ def check(ctxobj: CtxObj, check_command: str):
                 )
                 current_serial = None
 
-            try:
-                new_serial = serial_from_zone_file(zone, zone_file)
-            except:
-                print(f"[red]:x: Failed to get serial from {zone_file}")
-
             if current_serial is not None and not is_serial_increased(
                 current_serial, new_serial
             ):
@@ -314,7 +311,9 @@ def check(ctxobj: CtxObj, check_command: str):
 
         all_success &= success
 
-    return all_success
+    if not all_success:
+        print("[red] Checks failed")
+        sys.exit(1)
 
 
 def serial_from_query(zone, server):
