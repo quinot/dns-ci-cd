@@ -48,7 +48,7 @@ check() {
 check "$DEST" "destination"
 check "$SSH_PRIVATE_KEY" "SSH private key (\$SSH_PRIVATE_KEY)"
 
-set -e
+set -ex
 
 eval "$(ssh-agent -s)" > /dev/null 2>&1
 trap "ssh-agent -k" EXIT
