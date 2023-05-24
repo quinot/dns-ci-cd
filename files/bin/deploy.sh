@@ -66,7 +66,9 @@ updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $CONFIG_DIR/ "$DEST":/co
 # Push zone files
 
 for file in $(rsync $RSYNCPARAMS $ZONES_DIR/ "$DEST":/config/zones/); do
-    updated_zones="$updated_zones $(basename $file .zone)"
+    case $file in
+        *.zone) updated_zones="$updated_zones $(basename $file .zone)" ;;
+    esac
 done
 
 # Reload
