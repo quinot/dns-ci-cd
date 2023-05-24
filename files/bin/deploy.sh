@@ -61,7 +61,7 @@ fi
 
 # Push config
 
-updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $CONFIG_DIR/ "$DEST":/config/)
+updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $CONFIG_DIR/ "$DEST":/config/ | grep -v '/$')
 echo "Updated config files: $updated_config"
 
 # Push zone files
