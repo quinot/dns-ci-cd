@@ -48,7 +48,7 @@ check() {
 check "$DEST" "destination"
 check "$SSH_PRIVATE_KEY" "SSH private key (\$SSH_PRIVATE_KEY)"
 
-set -ex
+set -e
 
 eval "$(ssh-agent -s)" > /dev/null 2>&1
 trap "ssh-agent -k" EXIT
@@ -61,7 +61,7 @@ fi
 
 # Push config
 
-updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $CONFIG_DIR/ "$DEST":/config/ | grep -v '/$')
+updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $CONFIG_DIR/ "$DEST":/config/ | grep -v '/$' || true)
 echo "Updated config files: $updated_config"
 
 # Push zone files
