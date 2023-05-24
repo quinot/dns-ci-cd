@@ -1,6 +1,6 @@
 #! /bin/bash
 
-RSYNCPARAMS="--archive --out-format=%n --recursive --delete"
+RSYNCPARAMS=" --out-format=%n --archive --checksum --recursive --delete"
 
 usage() {
     echo "Usage: $0  [-Z ZONES_DIR] [-C CONFIG_DIR] [USER@]SERVER" 1>&2
@@ -48,7 +48,7 @@ check() {
 check "$DEST" "destination"
 check "$SSH_PRIVATE_KEY" "SSH private key (\$SSH_PRIVATE_KEY)"
 
-set -ex
+set -e
 
 eval "$(ssh-agent -s)" > /dev/null 2>&1
 trap "ssh-agent -k" EXIT
@@ -62,6 +62,7 @@ fi
 # Push config
 
 updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $CONFIG_DIR/ "$DEST":/config/)
+echo "Updated config files: $updated_config"
 
 # Push zone files
 
@@ -70,6 +71,7 @@ for file in $(rsync $RSYNCPARAMS $ZONES_DIR/ "$DEST":/config/zones/); do
         *.zone) updated_zones="$updated_zones $(basename $file .zone)" ;;
     esac
 done
+echo "Updated zones: $updated_zones"
 
 # Reload
 
@@ -77,7 +79,8 @@ if [ -n "$updated_config" ]; then
     # Reload server configuration and all zones
 
     ssh "$DEST" "knotc reload"
-else
+
+elif [ -n "$updated_zones" ]; then
     # Reload updated zones
 
     ssh "$DEST" "knotc zone-reload $updated_zones"
