@@ -62,7 +62,11 @@ fi
 # Push config
 
 updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $CONFIG_DIR/ "$DEST":/config/ | grep -v '/$' || true)
-echo "Updated config files: $updated_config"
+if [ -n "$updated_config" ]; then
+    echo "Updated config files: $updated_config"
+else
+    echo "No config files updated"
+fi
 
 # Push zone files
 
@@ -71,9 +75,15 @@ for file in $(rsync $RSYNCPARAMS $ZONES_DIR/ "$DEST":/config/zones/); do
         *.zone) updated_zones="$updated_zones $(basename $file .zone)" ;;
     esac
 done
-echo "Updated zones: $updated_zones"
+if [ -n "$updated_zones" ]; then
+    echo "Updated zones: $updated_zones"
+else
+    echo "No zones updated"
+fi
 
 # Reload
+
+set +x
 
 if [ -n "$updated_config" ]; then
     # Reload server configuration and all zones
