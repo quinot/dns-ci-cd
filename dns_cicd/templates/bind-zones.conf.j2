@@ -1,3 +1,0 @@
-{% for zone_name in zones | sort %}
-zone "{{ zone_name }}" { type master; file "{{ zones[zone_name] }}"; };
-{%- endfor %}
