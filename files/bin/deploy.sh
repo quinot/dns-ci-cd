@@ -1,9 +1,9 @@
 #! /bin/bash
 
-RSYNCPARAMS="--out-format=%n --recursive --delete --delete-excluded"
+RSYNCPARAMS="--archive --out-format=%n --recursive --delete"
 
 usage() {
-    echo "Usage: $0  [-Z ZONES_DIR] [-C CONFIG_DIR] [-D DEST_DIR] [USER@]SERVER" 1>&2
+    echo "Usage: $0  [-Z ZONES_DIR] [-C CONFIG_DIR] [USER@]SERVER" 1>&2
     exit 1
 }
 
@@ -27,8 +27,6 @@ do
         ZONES_DIR="$OPTARG";;
     C)
         CONFIG_DIR="$OPTARG";;
-    D)
-        DEST_DIR="$OPTARG";;
     *)
         usage;;
   esac
@@ -61,20 +59,19 @@ if [ ! -f ~/.ssh/config ]; then
     echo -e "Host *\n\tStrictHostKeyChecking accept-new\n" > ~/.ssh/config
 fi
 
+# Push config
+
+updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $CONFIG_DIR/ "$DEST":/config/)
+
 # Push zone files
 
-updated_config=false
-updated_zones=""
-for file in rsync $RSYNCPARAMS $ZONES_DIR $CONFIG_DIR "$DEST":"$DEST_DIR/"; do
-    case $file in
-        $CONFIG_DIR/*) updated_config=true ;;
-        $ZONES_DIR/*)  updated_zones="$updated_zones $(basename $file .zone)";;
-    esac
+for file in $(rsync $RSYNCPARAMS $ZONES_DIR/ "$DEST":/config/zones/); do
+    updated_zones="$updated_zones $(basename $file .zone)"
 done
 
 # Reload
 
-if $updated_config; then
+if [ -n "$updated_config" ]; then
     # Reload server configuration and all zones
 
     ssh "$DEST" "knotc reload"

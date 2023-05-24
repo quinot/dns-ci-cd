@@ -27,6 +27,7 @@ which takes care of serial management.
 ## Deploy
 
 * Copy configuration and zone files
+  * Config and zone files are expected to reside in /config and /config/zones, respectively (as in https://github.com/quinot/docker-knot-ssh)
 * Reload name server
   * If config file changed: full reload
   * Else reload only changed zones
