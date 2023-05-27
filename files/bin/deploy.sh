@@ -3,7 +3,7 @@
 RSYNCPARAMS=" --out-format=%n --archive --checksum --recursive --delete"
 
 usage() {
-    echo "Usage: $0  [-Z ZONES_DIR] [-C CONFIG_DIR] [USER@]SERVER" 1>&2
+    echo "Usage: $0  [-Z ZONES_DIR] [-M MERGED_CONFIG_DIR] [USER@]SERVER" 1>&2
     exit 1
 }
 
@@ -20,13 +20,13 @@ check_zones() {
 DEST_DIR=.
 # Default: remote user home directory
 
-while getopts Z:C:s: opt
+while getopts Z:M:s: opt
 do
   case $opt in
     Z)
         ZONES_DIR="$OPTARG";;
-    C)
-        CONFIG_DIR="$OPTARG";;
+    M)
+        MERGED_CONFIG_DIR="$OPTARG";;
     *)
         usage;;
   esac
@@ -61,7 +61,7 @@ fi
 
 # Push config
 
-updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $CONFIG_DIR/ "$DEST":/config/ | grep -v '/$' || true)
+updated_config=$(rsync $RSYNCPARAMS -f "protect zones/" $MERGED_CONFIG_DIR/ "$DEST":/config/ | grep -v '/$' || true)
 if [ -n "$updated_config" ]; then
     echo "Updated config files: $updated_config"
 else
